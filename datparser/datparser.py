@@ -1,145 +1,160 @@
-import typing
-from dataclasses import dataclass, field
+"""
+ESRP Spectrum Analyzer Trace export file format parser
+"""
 
-@dataclass
-class ParserState:
-    """Class to holdd dynamic variables while parsing the .DAT file
-    """
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 
-        def _parse_file(self):
-        """Main parsing function to process the file content."""
-        lines = self.file_content.splitlines()
-        current_trace = None
+class Trace:
+    _id = 0
+
+    def __init__(self, x, y) -> None:
+        Trace.id += 1
+
+        self.x = x
+        self.y = y
+
+
+class ESRPFile:
+    def __init__(self, file_path):
+        self.metadata = {}
+        self.scans = []
+        self.traces = []
+        self._parse(file_path)
+
+    def _parse(self, file_path):
         current_scan = None
+        current_trace = None
+        in_trace = False
+        in_trace_data = False
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
 
         for line in lines:
             line = line.strip()
+            if not line:
+                continue
 
-            # Handle trace section
-            if line.startswith("TRACE"):
-                if current_trace:
-                    self.traces.append(current_trace)
-                current_trace = {"metadata": {}, "frequencies": [], "amplitudes": []}
-            elif current_trace:
-                self._parse_trace_line(line, current_trace)
+            # Split line into parts and remove empty/whitespace-only parts
+            parts = [p.strip() for p in line.split(";") if p.strip()]
+            if not parts:
+                continue
 
-            # Handle scan section
-            elif line.startswith("Scan"):
-                if current_scan:
-                    self.scans.append(current_scan)
-                current_scan = {"metadata": {}}
-            elif current_scan and ";" in line:
-                self._parse_scan_line(line, current_scan)
+            key = parts[0]
 
-            # Handle general metadata
+            # Handle Scan sections
+            if key.startswith("Scan") and key.endswith(":"):
+                current_scan = {"name": key[:-1].strip(), "parameters": {}}
+                self.scans.append(current_scan)
+                in_trace = False
+                in_trace_data = False
+                current_trace = None
+
+            # Handle Trace sections
+            elif key.startswith("TRACE"):
+                current_trace = {"metadata": {}, "data": {"x": [], "y": []}}
+                self.traces.append(current_trace)
+                in_trace = True
+                in_trace_data = False
+
+            # Handle Trace data and metadata
+            elif in_trace:
+                if key == "Values":
+                    current_trace["metadata"][key] = parts[1:]
+                    in_trace_data = True
+                elif in_trace_data:
+                    if len(parts) >= 2:
+                        try:
+                            x = float(parts[0])
+                            y = float(parts[1])
+                            current_trace["data"]["x"].append(x)
+                            current_trace["data"]["y"].append(y)
+                        except ValueError:
+                            pass
+                else:
+                    current_trace["metadata"][key] = parts[1:]
+
+            # Handle Scan parameters and global metadata
             else:
-                self._parse_metadata_line(line)
+                if current_scan is not None:
+                    current_scan["parameters"][key] = parts[1:]
+                else:
+                    self.metadata[key] = parts[1:]
 
-        # Add the last trace and scan if applicable
-        if current_trace:
-            self.traces.append(current_trace)
-        if current_scan:
-            self.scans.append(current_scan)
-
-    def _parse_metadata_line(self, line: str) -> None:
-        """Parse a single line of general metadata."""
-        if ";" in line:
-            key, *value = line.split(";")
-            self.metadata[key.strip()] = ";".join(value).strip()
-
-    def _parse_scan_line(self, line: str, scan: dict) -> None:
-        """Parse a single line of scan metadata."""
-        if ";" in line:
-            key, *value = line.split(";")
-            scan["metadata"][key.strip()] = ";".join(value).strip()
-
-    def _parse_trace_line(self, line: str, trace: dict) -> None:
-        """Parse a line of trace data or metadata."""
-        if 'Values;' in line:
-            trace["metadata"]["Values"] = int(line.split(';')[1].strip())
-        elif ';' in line and line.split(";")[0].replace(".", "", 1).isdigit():
-            try:
-                freq, amp = map(float, line.split(";")[:2])
-                trace["frequencies"].append(freq)
-                trace["amplitudes"].append(amp)
-            except ValueError:
-                pass  # Ignore invalid lines
-        elif ";" in line:
-            key, *value = line.split(";")
-            trace["metadata"][key.strip()] = ";".join(value).strip()
-
-    def get_metadata(self):
-        """Return general metadata."""
-        return self.metadata
-
-    def get_scans(self):
-        """Return all scans' metadata."""
-        return self.scans
-
-    def get_traces(self):
-        """Return all traces with their metadata and values."""
-        return self.traces
-
-class Dat:
-    """
-    It is should be basic class to store .DAT info
-
-    like in network.py in scikit-rf
-    """
-    def __init__(self, file : str | typing.TextIO, encoding : str | None = None):
+    def get_scan_parameters(self, scan_index=0):
         """
-        constructor
-        """
-        pass
+        Get parameters for a specific scan.
 
-# Example usage
+        Args:
+            scan_index (int): Index of the scan to retrieve (default: 0)
+
+        Returns:
+            dict: Dictionary of scan parameters
+        """
+        try:
+            return self.scans[scan_index]["parameters"]
+        except IndexError:
+            raise ValueError(f"Scan index {scan_index} out of range")
+
+    def get_trace_metadata(self, trace_index=0):
+        """
+        Get metadata for a specific trace.
+
+        Args:
+            trace_index (int): Index of the trace to retrieve (default: 0)
+
+        Returns:
+            dict: Dictionary of trace metadata
+        """
+        try:
+            return self.traces[trace_index]["metadata"]
+        except IndexError:
+            raise ValueError(f"Trace index {trace_index} out of range")
+
+    def to_df(self, trace_index=0):
+        """
+        Convert trace data to pandas DataFrame.
+
+        Args:
+            trace_index (int): Index of the trace to convert (default: 0)
+
+        Returns:
+            pd.DataFrame: DataFrame containing x and y values
+        """
+        if not self.traces:
+            return pd.DataFrame() if pd else None
+
+        metadata = self.get_trace_metadata(trace_index=trace_index)
+        columns = [metadata["x-Unit"][0], metadata["y-Unit"][0]]
+
+        try:
+            trace = self.traces[trace_index]
+            return pd.DataFrame(
+                {columns[0]: trace["data"]["x"], columns[1]: trace["data"]["y"]}
+            )
+        except IndexError:
+            raise ValueError(f"Trace index {trace_index} out of range")
+        except ImportError as e:
+            raise RuntimeError("pandas is required for DataFrame conversion") from e
+
+
+# Example usage:
 if __name__ == "__main__":
-    file_content = """Type;ESRP-7;
-Version;3.36 SP1;
-Date;03.Feb 18;
-Mode;Receiver;
-Start;150000.000000;Hz
-Stop;1000000000.000000;Hz
-x-Axis;LIN;
-Detector;MAX PEAK;
-Scan Count;1;
-Transducer;;;;;;;
-Scan 1:
-Start;150000.000000;Hz
-Stop;29998500.000000;Hz
-Step;2250.000000;Hz
-RBW;9000.000000;Hz
-Meas Time;0.001000;s
-Auto Ranging;OFF;
-RF Att;10.000000;dB
-Auto Preamp;OFF;
-Preamp;0.000000;dB
-Scan 2:
-Start;30000000.000000;Hz
-Stop;1000000000.000000;Hz
-Step;2250.000000;Hz
-RBW;9000.000000;Hz
-Meas Time;0.001000;s
-Auto Ranging;OFF;
-RF Att;10.000000;dB
-Auto Preamp;OFF;
-Preamp;0.000000;dB
-TRACE 1:
-Trace Mode;MAX HOLD;
-x-Unit;Hz;
-y-Unit;dBµV;
-Values;444380;
-150000.000000;6.154694;
-152250.000000;6.300735;
-154500.000000;5.021690;
-156750.000000;5.843552;
-159000.00000;6.031052;
-161250.000000;5.537994;"""
+    esrp = ESRPFile("../test.DAT")
 
-    parser = DatParser(file_content=file_content)
+    # Access global metadata
+    print("File metadata:", esrp.metadata)
 
-    print("Metadata:", parser.get_metadata())
-    print("Scans:", parser.get_scans())
-    print("Traces:", parser.get_traces())
-0
+    # Access scan parameters
+    for i, scan in enumerate(esrp.scans):
+        print(f"Scan {i} parameters:", scan["parameters"])
+
+    # Access trace data and metadata
+    for i, trace in enumerate(esrp.traces):
+        print(f"Trace {i} metadata:", trace["metadata"])
+        df = esrp.to_dataframe(i)
+        print(f"Data points in trace {i}: {len(df)}")
