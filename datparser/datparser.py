@@ -8,16 +8,6 @@ except ImportError:
     pd = None
 
 
-class Trace:
-    _id = 0
-
-    def __init__(self, x, y) -> None:
-        Trace.id += 1
-
-        self.x = x
-        self.y = y
-
-
 class ESRPFile:
     def __init__(self, file_path):
         self.metadata = {}
