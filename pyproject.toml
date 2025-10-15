@@ -1,19 +1,120 @@
-[tool.poetry]
-name = "datparser"
-version = "0.1.0"
-description = ""
-authors = ["savaleriy"]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-pyright = "^1.1.393"
-pandas = "^2.2.3"
-numpy = "^2.2.4"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.0"
-Cython = "^0.29.34"
-
 [build-system]
-requires = ["setuptools>=42", "wheel", "Cython"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datparser"
+dynamic = ["version"]
+description = "ESRP Spectrum Analyzer Trace export file format parser"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+keywords = ["esrp", "spectrum-analyzer", "parser", "scientific-data"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "pandas>=1.0.0; extra == 'full'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-mock",
+    "black",
+    "isort",
+    "flake8",
+    "mypy",
+]
+full = [
+    "pandas>=1.0.0",
+    "chardet>=3.0.0",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "pytest-mock",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/datparser"
+Documentation = "https://github.com/yourusername/datparser#readme"
+Repository = "https://github.com/yourusername/datparser"
+Issues = "https://github.com/yourusername/datparser/issues"
+
+[project.scripts]
+datparser = "src.datparser:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --cov=src --cov-report=html --cov-report=term-missing"
+
+[tool.black]
+target-version = ['py38']
+line-length = 100
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  | venv
+  | .venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv.sources]
+datparser = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "datparser",
+]
