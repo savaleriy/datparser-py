@@ -13,21 +13,11 @@ from .datparser import (
     ESRPFile,
 )
 
+__version__ = "0.1.0"  # Define version as string, not function
 __all__ = [
     "TraceData",
     "Trace",
     "Scan",
     "ESRPParser",
     "ESRPFile",
-    "__version__",
 ]
-
-
-def __version__():
-    """Return the package version."""
-    try:
-        from importlib.metadata import version
-
-        return version("datparser")
-    except ImportError:
-        return "0.1.0"  # Fallback version

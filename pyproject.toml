@@ -29,9 +29,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-dependencies = [
-    "pandas>=1.0.0; extra == 'full'",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
@@ -54,19 +52,16 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/datparser"
-Documentation = "https://github.com/yourusername/datparser#readme"
-Repository = "https://github.com/yourusername/datparser"
-Issues = "https://github.com/yourusername/datparser/issues"
-
-[project.scripts]
-datparser = "src.datparser:main"
+Homepage = "https://github.com/savaleriy/datparser-py"
+Documentation = "https://github.com/savaleriy/datparser-py#readme"
+Repository = "https://github.com/savaleriy/datparser-py"
+Issues = "https://github.com/savaleriy/datparser-py/issues"
 
 [tool.hatch.version]
 source = "vcs"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src/datparser"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -105,16 +100,3 @@ python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-
-[tool.uv.workspace]
-members = [
-    ".",
-]
-
-[tool.uv.sources]
-datparser = { workspace = true }
-
-[dependency-groups]
-dev = [
-    "datparser",
-]
